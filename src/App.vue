@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { simulateWithFrames } from './core/simulation'
 import { PixiRenderer, type RenderConfig } from './render/renderer'
 import { AudioSynthesizer, type SynthConfig } from './audio/synthesizer'
@@ -21,6 +21,7 @@ let renderer: PixiRenderer | null = null
 let audioSynth: AudioSynthesizer | null = null
 let mediaExporter: MediaExporter | null = null
 let sceneManager: SceneManager | null = null
+let isInitialized = false
 
 const sceneSettings = computed((): SceneSettings => ({
   seed: seed.value,
@@ -30,13 +31,13 @@ const sceneSettings = computed((): SceneSettings => ({
 
 const getCurrentSimConfig = () => {
   if (!sceneManager) return null
-  
+
   sceneManager.selectScene(selectedSceneId.value)
   sceneManager.updateSettings(sceneSettings.value)
-  
+
   const scene = sceneManager.getCurrentScene()
   const config = scene.getConfig()
-  
+
   return config
 }
 
@@ -63,61 +64,144 @@ onMounted(async () => {
   await renderer.init(renderConfig)
 
   audioSynth = new AudioSynthesizer(synthConfig)
-  await audioSynth.init()
-
   mediaExporter = new MediaExporter(synthConfig)
   sceneManager = new SceneManager(sceneSettings.value)
 
+  isInitialized = true
   updateScene()
 })
 
 const updateScene = () => {
-  if (!renderer || !sceneManager) {
+  if (!renderer || !sceneManager || !isInitialized) {
     return
   }
-  
+
   const config = getCurrentSimConfig()
   if (!config) return
-  
+
   const { frames } = simulateWithFrames(config)
-  
+
   if (frames[0] && frames[0].length > 0) {
     renderer.render(frames[0])
   }
 }
+
+watch([selectedSceneId, seed, fps, duration], () => {
+  if (isInitialized) {
+    updateScene()
+  }
+}, { flush: 'post' })
 
 const togglePlay = async () => {
   const config = getCurrentSimConfig()
   if (!audioSynth || !config) return
 
   if (isPlaying.value) {
+    console.log('🛑 Stopping playback')
     audioSynth.stop()
     isPlaying.value = false
   } else {
-    const { events } = simulateWithFrames(config)
-    audioSynth.scheduleEvents(events)
+    console.log('▶️ Starting playback')
+
+    // Инициализируем аудио при первом нажатии
+    if (!audioSynth.isInitialized) {
+      console.log('🎛️ Initializing audio for first time...')
+      try {
+        await audioSynth.init()
+        console.log('✅ Audio initialized successfully')
+      } catch (error) {
+        console.warn('❌ Could not initialize audio:', error)
+        return
+      }
+    }
+
+    console.log('🎬 Starting live physics simulation...')
+
     audioSynth.start()
     isPlaying.value = true
-    animate()
+    await animate()
   }
 }
 
-const animate = () => {
+const animate = async () => {
   const config = getCurrentSimConfig()
-  if (!renderer || !config) return
-  
-  const { frames } = simulateWithFrames(config)
-  let currentFrame = 0
-  const totalFrames = frames.length
-  
+  if (!renderer || !config || !audioSynth) return
+
+  // Создаём новый физический движок для живой симуляции
+  const { PhysicsEngine } = await import('./core/physics')
+  const { mulberry32 } = await import('./core/prng')
+
+  const engine = new PhysicsEngine(config.physics)
+  const rand = mulberry32(config.seed)
+  const dt = 1 / config.fps
+  const startTime = performance.now()
+  const maxDuration = config.duration * 1000 // в миллисекундах
+
+  // Добавляем шарики в движок
+  config.circles.forEach((circleConfig, index) => {
+    engine.addCircle({
+      id: index,
+      ...circleConfig
+    })
+  })
+
+  const NOTES = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5']
+  const pickNote = (): string => {
+    const index = Math.floor(rand() * NOTES.length)
+    return NOTES[index]
+  }
+
+  const calculateVelocity = (collision: { penetration: number }): number => {
+    const velocity = Math.min(collision.penetration * 10, 1)
+    const minVelocity = 0.3 // минимальная громкость для слышимости
+    return Math.max(velocity, minVelocity)
+  }
+
   const loop = () => {
-    if (!renderer || !isPlaying.value) return
-    
-    renderer.render(frames[currentFrame])
-    currentFrame = (currentFrame + 1) % totalFrames
+    if (!renderer || !isPlaying.value || !audioSynth) return
+
+    const elapsed = performance.now() - startTime
+
+    // Остановиться по таймауту
+    if (elapsed >= maxDuration) {
+      console.log('🏁 Animation complete')
+      audioSynth.stop()
+      isPlaying.value = false
+      return
+    }
+
+    // Выполняем шаг физической симуляции
+    const collisions = engine.step(dt, rand)
+    const currentTime = elapsed / 1000
+
+    if (collisions.length > 0) {
+      console.log(`🎬 Time: ${currentTime.toFixed(3)}s, collisions: ${collisions.length}`)
+      collisions.forEach(collision => {
+        console.log(`  - Circle ${collision.circleId}: penetration=${collision.penetration.toFixed(3)}, normal=(${collision.normal.x.toFixed(2)}, ${collision.normal.y.toFixed(2)})`)
+      })
+    }
+
+    // Рендерим текущее состояние шариков
+    renderer.render(engine.getCircles())
+
+    // Обрабатываем столкновения в реальном времени
+    for (const collision of collisions) {
+      const isWallCollision = Math.abs(collision.normal.x) === 1 || Math.abs(collision.normal.y) === 1
+
+      // Для стен играем звук всегда, для шариков только при penetration > 0.1
+      if (isWallCollision || collision.penetration > 0.1) {
+        const velocity = calculateVelocity(collision)
+        const note = pickNote()
+        console.log(`💥 ${isWallCollision ? 'WALL' : 'BALL'} Collision! Circle ${collision.circleId}, penetration: ${collision.penetration.toFixed(3)}, velocity: ${velocity.toFixed(3)}, note: ${note}`)
+        audioSynth.playNote(collision.circleId, note, velocity)
+      } else {
+        console.log(`⚪ Small collision (skipped): Circle ${collision.circleId}, penetration: ${collision.penetration.toFixed(3)}`)
+      }
+    }
+
     requestAnimationFrame(loop)
   }
-  
+
   loop()
 }
 
@@ -139,7 +223,7 @@ const exportVideo = async () => {
     for (let i = 0; i < frames.length; i++) {
       offscreenRenderer.render(frames[i])
       const blob = await offscreenRenderer.getBlob('image/png')
-      
+
       if (blob) {
         const bitmap = await createImageBitmap(blob)
         const videoFrame = new VideoFrame(bitmap, {
@@ -186,7 +270,7 @@ const exportVideo = async () => {
     )
 
     mediaExporter.downloadBlob(arrayBuffer, 'geometric-simulation.mp4')
-    
+
     offscreenRenderer.destroy()
     videoFrames.forEach(frame => frame.close())
 
@@ -216,14 +300,14 @@ const exportVideo = async () => {
     <div class="settings">
       <div class="scene-selector">
         <label>Сценка:</label>
-        <select v-model="selectedSceneId" @change="updateScene" :disabled="isPlaying || isExporting">
+        <select v-model="selectedSceneId" :disabled="isPlaying || isExporting">
           <option value="bouncing-balls">Прыгающие шарики</option>
           <option value="orbital-chaos">Орбитальный хаос</option>
           <option value="gravity-well">Гравитационный колодец</option>
           <option value="chain-reaction">Цепная реакция</option>
         </select>
       </div>
-      
+
       <div class="scene-description" v-if="sceneManager">
         {{ sceneManager.getCurrentScene().description }}
       </div>
@@ -231,10 +315,9 @@ const exportVideo = async () => {
       <div class="parameters">
         <div class="param">
           <label>Seed:</label>
-          <input 
-            type="number" 
-            v-model.number="seed" 
-            @change="updateScene"
+          <input
+            type="number"
+            v-model.number="seed"
             :disabled="isPlaying || isExporting"
             min="1"
             max="999999"
@@ -242,10 +325,9 @@ const exportVideo = async () => {
         </div>
         <div class="param">
           <label>FPS:</label>
-          <input 
-            type="number" 
-            v-model.number="fps" 
-            @change="updateScene"
+          <input
+            type="number"
+            v-model.number="fps"
             :disabled="isPlaying || isExporting"
             min="30"
             max="120"
@@ -253,10 +335,9 @@ const exportVideo = async () => {
         </div>
         <div class="param">
           <label>Секунды:</label>
-          <input 
-            type="number" 
-            v-model.number="duration" 
-            @change="updateScene"
+          <input
+            type="number"
+            v-model.number="duration"
             :disabled="isPlaying || isExporting"
             min="5"
             max="60"
@@ -272,8 +353,8 @@ const exportVideo = async () => {
     <div v-if="exportProgress" class="export-progress">
       <div class="phase">{{ exportProgress.phase }}</div>
       <div class="progress-bar">
-        <div 
-          class="progress-fill" 
+        <div
+          class="progress-fill"
           :style="{ width: `${(exportProgress.progress / exportProgress.total) * 100}%` }"
         ></div>
       </div>

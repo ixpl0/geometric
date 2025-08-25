@@ -50,7 +50,7 @@ export class SceneManager {
     this.settings = settings
     this.scenes.forEach(scene => {
       if ('updateSettings' in scene) {
-        (scene as any).updateSettings(settings)
+        (scene as Scene & { updateSettings: (settings: SceneSettings) => void }).updateSettings(settings)
       }
     })
   }

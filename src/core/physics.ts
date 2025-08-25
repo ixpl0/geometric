@@ -51,7 +51,8 @@ export class PhysicsEngine {
     })
   }
 
-  step(dt: number, rand: PRNG): Collision[] {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  step(dt: number, _rand: PRNG): Collision[] {
     this.time += dt
     this.collisions = []
 

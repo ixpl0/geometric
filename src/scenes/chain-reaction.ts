@@ -13,7 +13,7 @@ export class ChainReactionScene implements Scene {
     
     circles.push({
       position: { x: 100, y: 300 },
-      velocity: { x: 300, y: 0 },
+      velocity: { x: 20000, y: 0 },
       radius: 25,
       mass: 1,
       color: 0xe17055

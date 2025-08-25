@@ -13,7 +13,14 @@ export class AudioSynthesizer {
   private reverb: Tone.Reverb
   private compressor: Tone.Compressor
   private masterGain: Tone.Gain
-  private isInitialized = false
+  private _isInitialized = false
+  private startTime = 0
+  private isPlaying = false
+  private lastNoteTime: Map<number, number> = new Map()
+
+  get isInitialized(): boolean {
+    return this._isInitialized
+  }
 
   constructor(private config: SynthConfig) {
     this.masterGain = new Tone.Gain(config.masterVolume)
@@ -28,7 +35,7 @@ export class AudioSynthesizer {
   }
 
   async init(): Promise<void> {
-    if (this.isInitialized) {
+    if (this._isInitialized) {
       return
     }
 
@@ -36,7 +43,7 @@ export class AudioSynthesizer {
     await this.reverb.generate()
 
     this.masterGain.chain(this.compressor, this.reverb, Tone.getDestination())
-    this.isInitialized = true
+    this._isInitialized = true
   }
 
   createSynth(id: number): void {
@@ -61,7 +68,40 @@ export class AudioSynthesizer {
   }
 
   playNote(circleId: number, note: string, velocity: number, duration = 0.1): void {
-    if (!this.isInitialized) {
+    console.log(`🎵 Playing note: ${note} for circle ${circleId}, velocity: ${velocity.toFixed(3)}`)
+    if (!this._isInitialized) {
+      console.log('❌ Audio not initialized, skipping note')
+      return
+    }
+
+    const currentTime = Tone.now()
+    const lastTime = this.lastNoteTime.get(circleId) || 0
+    const minInterval = 0.05 // минимум 50мс между нотами для одного шарика
+    
+    if (currentTime - lastTime < minInterval) {
+      console.log(`⏸️ Skipping note - too soon after last note for circle ${circleId}`)
+      return
+    }
+
+    let synth = this.synths.get(circleId)
+    if (!synth) {
+      this.createSynth(circleId)
+      synth = this.synths.get(circleId)!
+      console.log(`🎛️ Created new synth for circle ${circleId}`)
+    }
+
+    try {
+      synth.volume.value = Tone.gainToDb(velocity * 0.5)
+      synth.triggerAttackRelease(note, duration)
+      this.lastNoteTime.set(circleId, currentTime)
+      console.log(`✅ Note triggered successfully`)
+    } catch (error) {
+      console.warn(`❌ Failed to trigger note for circle ${circleId}:`, error)
+    }
+  }
+
+  playNoteAtTime(circleId: number, note: string, velocity: number, time: number, duration = 0.1): void {
+    if (!this._isInitialized) {
       return
     }
 
@@ -72,30 +112,9 @@ export class AudioSynthesizer {
     }
 
     synth.volume.value = Tone.gainToDb(velocity * 0.5)
-    synth.triggerAttackRelease(note, duration)
+    synth.triggerAttackRelease(note, duration, time)
   }
 
-  scheduleEvents(events: SimEvent[]): void {
-    if (!this.isInitialized) {
-      return
-    }
-
-    Tone.Transport.clear()
-    Tone.Transport.cancel()
-    Tone.Transport.position = 0
-
-    events.forEach(event => {
-      if (event.type === 'collision') {
-        Tone.Transport.schedule((time) => {
-          this.playNote(
-            event.payload.circleId,
-            event.payload.note,
-            event.payload.velocity
-          )
-        }, event.time)
-      }
-    })
-  }
 
   async renderOffline(events: SimEvent[], duration: number): Promise<AudioBuffer> {
     const offlineContext = new Tone.OfflineContext(2, duration, 44100)
@@ -152,21 +171,22 @@ export class AudioSynthesizer {
   }
 
   start(): void {
-    if (this.isInitialized) {
-      Tone.Transport.start()
+    if (this._isInitialized) {
+      this.isPlaying = true
+      this.startTime = Tone.now()
     }
   }
 
   stop(): void {
-    if (this.isInitialized) {
-      Tone.Transport.stop()
-      Tone.Transport.cancel()
+    if (this._isInitialized) {
+      this.isPlaying = false
+      this.startTime = 0
     }
   }
 
   pause(): void {
-    if (this.isInitialized) {
-      Tone.Transport.pause()
+    if (this._isInitialized) {
+      this.isPlaying = false
     }
   }
 
@@ -178,10 +198,11 @@ export class AudioSynthesizer {
   dispose(): void {
     this.synths.forEach(synth => synth.dispose())
     this.synths.clear()
+    this.lastNoteTime.clear()
     this.masterGain.dispose()
     this.compressor.dispose()
     this.reverb.dispose()
-    Tone.Transport.clear()
-    this.isInitialized = false
+    this._isInitialized = false
+    this.isPlaying = false
   }
 }

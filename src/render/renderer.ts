@@ -14,7 +14,8 @@ export class PixiRenderer {
   private circles: Graphics[] = []
   private canvas: HTMLCanvasElement | OffscreenCanvas
 
-  constructor(canvas: HTMLCanvasElement | OffscreenCanvas, config: RenderConfig) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(canvas: HTMLCanvasElement | OffscreenCanvas, _config: RenderConfig) {
     this.canvas = canvas
     this.app = new Application()
     this.container = new Container()

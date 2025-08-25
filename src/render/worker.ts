@@ -3,7 +3,7 @@ import { simulateWithFrames, type SimConfig } from '../core/simulation'
 
 interface WorkerMessage {
   type: 'init' | 'render' | 'export'
-  payload: any
+  payload: InitPayload | RenderPayload | ExportPayload
 }
 
 interface InitPayload {

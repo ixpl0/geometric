@@ -54,12 +54,11 @@ export const simulate = (config: SimConfig): SimResult => {
 
   for (let frame = 0; frame < frameCount; frame++) {
     const collisions = engine.step(dt, rand)
-    const time = frame * dt
 
     for (const collision of collisions) {
       if (collision.penetration > 0.1) {
         events.push({
-          time,
+          time: collision.timestamp,
           type: 'collision',
           payload: {
             circleId: collision.circleId,
@@ -103,14 +102,13 @@ export const simulateWithFrames = (config: SimConfig): {
 
   for (let frame = 0; frame < frameCount; frame++) {
     const collisions = engine.step(dt, rand)
-    const time = frame * dt
 
     frames.push(engine.getCircles())
 
     for (const collision of collisions) {
       if (collision.penetration > 0.1) {
         events.push({
-          time,
+          time: collision.timestamp,
           type: 'collision',
           payload: {
             circleId: collision.circleId,
