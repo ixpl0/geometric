@@ -139,7 +139,9 @@ export class AudioSynthesizer {
 
     events.forEach(event => {
       if (event.type === 'collision') {
-        let synth = synthMap.get(event.payload.circleId)
+        const circleId = event.payload.objectId?.includes('ball') ? 
+          parseInt(event.payload.objectId.split('-')[1]) : 0
+        let synth = synthMap.get(circleId)
         if (!synth) {
           synth = new Tone.Synth({
             oscillator: { type: 'sine' },
@@ -151,7 +153,7 @@ export class AudioSynthesizer {
             }
           })
           synth.connect(masterGain)
-          synthMap.set(event.payload.circleId, synth)
+          synthMap.set(circleId, synth)
         }
 
         synth.volume.value = Tone.gainToDb(event.payload.velocity * 0.5)

@@ -137,12 +137,44 @@ const animate = async () => {
   const startTime = performance.now()
   const maxDuration = config.duration * 1000 // в миллисекундах
 
-  // Добавляем шарики в движок
-  config.circles.forEach((circleConfig, index) => {
-    engine.addCircle({
-      id: index,
-      ...circleConfig
-    })
+  // Добавляем объекты в движок
+  config.objects.forEach(objConfig => {
+    switch (objConfig.type) {
+      case 'circle':
+        engine.addCircle(
+          objConfig.id,
+          objConfig.position.x,
+          objConfig.position.y,
+          objConfig.radius || 20,
+          {
+            mass: objConfig.mass || 1,
+            color: objConfig.color || 0xffffff,
+            isStatic: objConfig.isStatic || false,
+            restitution: objConfig.restitution || 0.8,
+            friction: objConfig.friction || 0.1
+          }
+        )
+        break
+        
+      case 'rectangle':
+      case 'platform':
+        engine.addRectangle(
+          objConfig.id,
+          objConfig.position.x,
+          objConfig.position.y,
+          objConfig.width || 100,
+          objConfig.height || 20,
+          {
+            mass: objConfig.mass || 1,
+            color: objConfig.color || 0x888888,
+            isStatic: objConfig.isStatic || true,
+            restitution: objConfig.restitution || 0.8,
+            friction: objConfig.friction || 0.5,
+            angle: objConfig.angle || 0
+          }
+        )
+        break
+    }
   })
 
   const NOTES = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5']
@@ -151,8 +183,8 @@ const animate = async () => {
     return NOTES[index]
   }
 
-  const calculateVelocity = (collision: { penetration: number }): number => {
-    const velocity = Math.min(collision.penetration * 10, 1)
+  const calculateVelocity = (collision: { force: number }): number => {
+    const velocity = Math.min(collision.force * 0.5, 1) // force обычно больше penetration
     const minVelocity = 0.3 // минимальная громкость для слышимости
     return Math.max(velocity, minVelocity)
   }
@@ -177,25 +209,26 @@ const animate = async () => {
     if (collisions.length > 0) {
       console.log(`🎬 Time: ${currentTime.toFixed(3)}s, collisions: ${collisions.length}`)
       collisions.forEach(collision => {
-        console.log(`  - Circle ${collision.circleId}: penetration=${collision.penetration.toFixed(3)}, normal=(${collision.normal.x.toFixed(2)}, ${collision.normal.y.toFixed(2)})`)
+        console.log(`  - Object ${collision.objectId} vs ${collision.otherObjectId}: force=${collision.force.toFixed(3)}, normal=(${collision.normal.x.toFixed(2)}, ${collision.normal.y.toFixed(2)})`)
       })
     }
 
-    // Рендерим текущее состояние шариков
-    renderer.render(engine.getCircles())
+    // Рендерим текущее состояние объектов
+    renderer.render(engine.getObjects())
 
     // Обрабатываем столкновения в реальном времени
     for (const collision of collisions) {
-      const isWallCollision = Math.abs(collision.normal.x) === 1 || Math.abs(collision.normal.y) === 1
-
-      // Для стен играем звук всегда, для шариков только при penetration > 0.1
-      if (isWallCollision || collision.penetration > 0.1) {
+      // В Matter.js столкновения всегда между объектами, нет "wall collisions"
+      if (collision.force > 0.05) { // Минимальная сила столкновения
         const velocity = calculateVelocity(collision)
         const note = pickNote()
-        console.log(`💥 ${isWallCollision ? 'WALL' : 'BALL'} Collision! Circle ${collision.circleId}, penetration: ${collision.penetration.toFixed(3)}, velocity: ${velocity.toFixed(3)}, note: ${note}`)
-        audioSynth.playNote(collision.circleId, note, velocity)
+        console.log(`💥 Collision! Objects ${collision.objectId} vs ${collision.otherObjectId}, force: ${collision.force.toFixed(3)}, velocity: ${velocity.toFixed(3)}, note: ${note}`)
+        
+        // Проигрываем звук для каждого участника столкновения
+        const circleId = collision.objectId.includes('ball') ? parseInt(collision.objectId.split('-')[1]) : 0
+        audioSynth.playNote(circleId, note, velocity)
       } else {
-        console.log(`⚪ Small collision (skipped): Circle ${collision.circleId}, penetration: ${collision.penetration.toFixed(3)}`)
+        console.log(`⚪ Small collision (skipped): Objects ${collision.objectId} vs ${collision.otherObjectId}, force: ${collision.force.toFixed(3)}`)
       }
     }
 
@@ -227,7 +260,7 @@ const exportVideo = async () => {
       if (blob) {
         const bitmap = await createImageBitmap(blob)
         const videoFrame = new VideoFrame(bitmap, {
-          timestamp: (i / currentSimConfig.value.fps) * 1000000
+          timestamp: (i / config.fps) * 1000000
         })
         videoFrames.push(videoFrame)
         bitmap.close()
@@ -305,6 +338,9 @@ const exportVideo = async () => {
           <option value="orbital-chaos">Орбитальный хаос</option>
           <option value="gravity-well">Гравитационный колодец</option>
           <option value="chain-reaction">Цепная реакция</option>
+          <option value="washing-machine">Стиральная машина</option>
+          <option value="pinball-machine">Пинбол-машина</option>
+          <option value="gear-factory">Фабрика шестерёнок</option>
         </select>
       </div>
 

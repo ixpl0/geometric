@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run lint)"
+      "Bash(pnpm run lint)",
+      "Bash(pnpm run type-check:*)",
+      "Bash(pnpm run:*)"
     ],
     "deny": [],
     "ask": []

@@ -3,6 +3,9 @@ import { BouncingBallsScene } from './bouncing-balls'
 import { OrbitalChaosScene } from './orbital-chaos'
 import { GravityWellScene } from './gravity-well'
 import { ChainReactionScene } from './chain-reaction'
+import { WashingMachineScene } from './washing-machine'
+import { PinballMachineScene } from './pinball-machine'
+import { GearFactoryScene } from './gear-factory'
 
 export class SceneManager {
   private scenes: Scene[] = []
@@ -17,7 +20,10 @@ export class SceneManager {
       new BouncingBallsScene(this.settings),
       new OrbitalChaosScene(this.settings),
       new GravityWellScene(this.settings),
-      new ChainReactionScene(this.settings)
+      new ChainReactionScene(this.settings),
+      new WashingMachineScene(this.settings),
+      new PinballMachineScene(this.settings),
+      new GearFactoryScene(this.settings)
     ]
   }
 

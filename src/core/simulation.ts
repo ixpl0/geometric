@@ -1,14 +1,33 @@
 import { mulberry32, type PRNG } from './prng'
-import { PhysicsEngine, type PhysicsConfig, type Circle, type Collision } from './physics'
+import { PhysicsEngine, type PhysicsConfig, type PhysicsObject, type Collision } from './physics'
 
 export interface SimEvent {
   time: number
   type: 'collision'
   payload: {
-    circleId: number
+    objectId: string
+    otherObjectId: string
     note: string
     velocity: number
   }
+}
+
+export interface SceneObject {
+  type: 'circle' | 'rectangle' | 'platform'
+  id: string
+  position: { x: number; y: number }
+  // Для кругов
+  radius?: number
+  // Для прямоугольников
+  width?: number
+  height?: number
+  angle?: number
+  // Общие свойства
+  mass?: number
+  color?: number
+  isStatic?: boolean
+  restitution?: number
+  friction?: number
 }
 
 export interface SimConfig {
@@ -16,11 +35,12 @@ export interface SimConfig {
   duration: number
   fps: number
   physics: PhysicsConfig
-  circles: Omit<Circle, 'id'>[]
+  objects: SceneObject[]
 }
 
 export interface SimResult {
   events: SimEvent[]
+  frames: PhysicsObject[][]
   duration: number
   frameCount: number
 }
@@ -33,85 +53,75 @@ const pickNote = (rand: PRNG): string => {
 }
 
 const calculateVelocity = (collision: Collision): number => {
-  return Math.min(collision.penetration * 10, 1)
+  return Math.min(collision.force * 0.5, 1)
 }
 
-export const simulate = (config: SimConfig): SimResult => {
-  const { seed, duration, fps, physics, circles } = config
+export const simulateWithFrames = (config: SimConfig): SimResult => {
+  const { seed, duration, fps, physics, objects } = config
   const rand = mulberry32(seed)
   const dt = 1 / fps
   const frameCount = Math.floor(duration * fps)
   const events: SimEvent[] = []
+  const frames: PhysicsObject[][] = []
 
   const engine = new PhysicsEngine(physics)
 
-  circles.forEach((circleConfig, index) => {
-    engine.addCircle({
-      id: index,
-      ...circleConfig
-    })
-  })
-
-  for (let frame = 0; frame < frameCount; frame++) {
-    const collisions = engine.step(dt, rand)
-
-    for (const collision of collisions) {
-      if (collision.penetration > 0.1) {
-        events.push({
-          time: collision.timestamp,
-          type: 'collision',
-          payload: {
-            circleId: collision.circleId,
-            note: pickNote(rand),
-            velocity: calculateVelocity(collision)
+  // Добавляем объекты в физический движок
+  objects.forEach(objConfig => {
+    switch (objConfig.type) {
+      case 'circle':
+        engine.addCircle(
+          objConfig.id,
+          objConfig.position.x,
+          objConfig.position.y,
+          objConfig.radius || 20,
+          {
+            mass: objConfig.mass || 1,
+            color: objConfig.color || 0xffffff,
+            isStatic: objConfig.isStatic || false,
+            restitution: objConfig.restitution || 0.8,
+            friction: objConfig.friction || 0.1
           }
-        })
-      }
+        )
+        break
+        
+      case 'rectangle':
+      case 'platform':
+        engine.addRectangle(
+          objConfig.id,
+          objConfig.position.x,
+          objConfig.position.y,
+          objConfig.width || 100,
+          objConfig.height || 20,
+          {
+            mass: objConfig.mass || 1,
+            color: objConfig.color || 0x888888,
+            isStatic: objConfig.isStatic || true,
+            restitution: objConfig.restitution || 0.8,
+            friction: objConfig.friction || 0.5,
+            angle: objConfig.angle || 0
+          }
+        )
+        break
     }
-  }
-
-  return {
-    events,
-    duration,
-    frameCount
-  }
-}
-
-export const simulateWithFrames = (config: SimConfig): {
-  events: SimEvent[]
-  frames: Circle[][]
-  duration: number
-  frameCount: number
-} => {
-  const { seed, duration, fps, physics, circles } = config
-  const rand = mulberry32(seed)
-  const dt = 1 / fps
-  const frameCount = Math.floor(duration * fps)
-  const events: SimEvent[] = []
-  const frames: Circle[][] = []
-
-  const engine = new PhysicsEngine(physics)
-
-  circles.forEach((circleConfig, index) => {
-    const circle = {
-      id: index,
-      ...circleConfig
-    }
-    engine.addCircle(circle)
   })
 
+  // Симулируем физику кадр за кадром
   for (let frame = 0; frame < frameCount; frame++) {
     const collisions = engine.step(dt, rand)
 
-    frames.push(engine.getCircles())
+    // Сохраняем состояние всех объектов
+    frames.push([...engine.getObjects()])
 
+    // Обрабатываем события столкновений
     for (const collision of collisions) {
-      if (collision.penetration > 0.1) {
+      if (collision.force > 0.05) {
         events.push({
           time: collision.timestamp,
           type: 'collision',
           payload: {
-            circleId: collision.circleId,
+            objectId: collision.objectId,
+            otherObjectId: collision.otherObjectId,
             note: pickNote(rand),
             velocity: calculateVelocity(collision)
           }
@@ -126,4 +136,10 @@ export const simulateWithFrames = (config: SimConfig): {
     duration,
     frameCount
   }
+}
+
+// Упрощённая функция для быстрой симуляции без кадров
+export const simulate = (config: SimConfig): { events: SimEvent[] } => {
+  const result = simulateWithFrames(config)
+  return { events: result.events }
 }
