@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import Matter from 'matter-js'
+import * as Tone from 'tone'
 
 const {
   Engine,
@@ -11,6 +12,7 @@ const {
   Composite,
   Bodies,
   Body,
+  Events,
   // Composites,
   // Constraint,
   // Vector,
@@ -81,6 +83,59 @@ onMounted(() => {
 
   // Ограничиваем скорость на каждом шаге
   const maxSpeed = 50
+  // Создаём лёгкий усилитель
+  const gain = new Tone.Gain(1.3)  // лёгкое усиление
+
+  // Создаём синтезатор для звуков ударов
+  const synth = new Tone.Synth({
+    oscillator: {
+      type: 'sine'
+    },
+    envelope: {
+      attack: 0.01,
+      decay: 0.1,
+      sustain: 0,
+      release: 0.1
+    }
+  }).chain(gain, Tone.Destination)
+
+  const playBounceSound = async (intensity: number) => {
+    // Инициализируем Tone.js при первом звуке
+    if (Tone.context.state !== 'running') {
+      await Tone.start()
+    }
+
+    // Частота зависит от силы удара
+    const frequency = 200 + (intensity * 400)
+
+    // Клипующий громкий звук, как просили! 🔊💥
+    synth.triggerAttackRelease(frequency, '0.2', undefined, intensity * 10)
+  }
+
+  // Отслеживаем столкновения
+  let lastCollisionTime = 0
+  const onCollision = (event: Matter.IEventCollision<Matter.Engine>) => {
+    const now = Date.now()
+    if (now - lastCollisionTime < 50) return // дебаунс
+
+    const pairs = event.pairs
+    for (const pair of pairs) {
+      const { bodyA, bodyB } = pair
+      if (bodyA === ball || bodyB === ball) {
+        // Вычисляем силу столкновения по скорости
+        const speed = Math.sqrt(ball.velocity.x * ball.velocity.x + ball.velocity.y * ball.velocity.y)
+        const intensity = Math.min(speed / maxSpeed, 1)
+
+        playBounceSound(intensity)
+        lastCollisionTime = now
+        break
+      }
+    }
+  }
+
+  // Подписываемся на события столкновений Matter.js
+  Events.on(engine, 'collisionStart', onCollision)
+
   const limitVelocity = () => {
     const speed = Math.sqrt(ball.velocity.x * ball.velocity.x + ball.velocity.y * ball.velocity.y)
     if (speed > maxSpeed) {
@@ -99,7 +154,7 @@ onMounted(() => {
   const mouseConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
     constraint: {
-      stiffness: 0.2,
+      stiffness: 0.5,
       render: {
         visible: false,
       },
