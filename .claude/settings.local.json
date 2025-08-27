@@ -3,7 +3,9 @@
     "allow": [
       "Bash(pnpm run lint)",
       "Bash(pnpm run type-check:*)",
-      "Bash(pnpm run:*)"
+      "Bash(pnpm run:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
