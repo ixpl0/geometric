@@ -15,7 +15,7 @@ const boundary = ref<Matter.Body>()
 const isRunning = ref(false)
 
 const { startRainbowAnimation, stopRainbowAnimation } = useRainbowColors()
-const { createCollisionHandler } = useCollisionSounds()
+const { createCollisionHandler, toggleMute, isMuted } = useCollisionSounds()
 
 const scene = useScene(
   {
@@ -167,6 +167,13 @@ onMounted(() => {
       >
         Рестарт
       </button>
+      <button
+        @click="toggleMute"
+        class="control-button mute"
+        :class="{ active: isMuted }"
+      >
+        {{ isMuted ? '🔇 Выкл' : '🔊 Звук' }}
+      </button>
     </div>
     <div ref="canvasContainer" class="canvas-container"></div>
   </div>
@@ -231,5 +238,22 @@ onMounted(() => {
 
 .control-button.restart:hover {
   background: linear-gradient(45deg, #8e44ad, #9b59b6, #2ecc71, #3498db);
+}
+
+.control-button.mute {
+  background: linear-gradient(45deg, #f39c12, #e67e22, #d35400, #e74c3c);
+}
+
+.control-button.mute:hover {
+  background: linear-gradient(45deg, #e67e22, #f39c12, #e74c3c, #d35400);
+}
+
+.control-button.mute.active {
+  background: linear-gradient(45deg, #7f8c8d, #95a5a6, #bdc3c7, #ecf0f1);
+  color: #2c3e50;
+}
+
+.control-button.mute.active:hover {
+  background: linear-gradient(45deg, #95a5a6, #bdc3c7, #ecf0f1, #7f8c8d);
 }
 </style>

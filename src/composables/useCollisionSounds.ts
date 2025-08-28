@@ -17,6 +17,7 @@ export interface SoundConfig {
 
 export const useCollisionSounds = (config: SoundConfig = {}) => {
   const isInitialized = ref(false)
+  const isMuted = ref(false)
   let synth: Synth | null = null
   let gain: Gain | null = null
   let lastCollisionTime = 0
@@ -56,6 +57,8 @@ export const useCollisionSounds = (config: SoundConfig = {}) => {
   }
   
   const playCollisionSound = async (intensity: number) => {
+    if (isMuted.value) return
+    
     if (!isInitialized.value) {
       await initSound()
     }
@@ -111,6 +114,10 @@ export const useCollisionSounds = (config: SoundConfig = {}) => {
     }
   }
   
+  const toggleMute = () => {
+    isMuted.value = !isMuted.value
+  }
+
   const destroy = () => {
     if (synth) {
       synth.dispose()
@@ -131,7 +138,9 @@ export const useCollisionSounds = (config: SoundConfig = {}) => {
     initSound,
     playCollisionSound,
     createCollisionHandler,
+    toggleMute,
     destroy,
-    isInitialized
+    isInitialized,
+    isMuted
   }
 }
