@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import TwoBallsScene from './scenes/TwoBallsScene.vue'
-import WhiteBallsScene from './scenes/WhiteBallsScene.vue'
+import Scene2 from './scenes/Scene2.vue'
 
 interface SceneOption {
   id: string
@@ -12,13 +12,13 @@ interface SceneOption {
 const scenes: SceneOption[] = [
   {
     id: 'dark',
-    name: 'Тёмная тема',
+    name: 'Сцена 1',
     component: TwoBallsScene
   },
   {
     id: 'light',
-    name: 'Светлая тема',
-    component: WhiteBallsScene
+    name: 'Сцена 2',
+    component: Scene2
   }
 ]
 

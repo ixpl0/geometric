@@ -13,32 +13,29 @@ const canvasContainer = ref<HTMLDivElement>()
 const balls: Matter.Body[] = []
 const boundary = ref<Matter.Body>()
 const isRunning = ref(false)
+let rotationAngle = 0
 
 const { startRainbowAnimation, stopRainbowAnimation } = useRainbowColors()
 const { createCollisionHandler, toggleMute, isMuted } = useCollisionSounds()
 
 const scene = useScene(
   {
-    name: 'White Background Demo',
+    name: 'Two Balls Demo',
     width: 800,
     height: 800,
     gravity: { x: 0, y: 1 },
-    backgroundColor: '#fff'
+    backgroundColor: '#000'
   },
   {
     setupScene: (context: SceneSetupContext) => {
-      // Создаём границы (тёмные на белом фоне)
+      // Создаём границы
       boundary.value = ElementFactory.createBoundaryBox(
         400,
         400,
         400,
         400,
         10,
-        {
-          friction: 0,
-          frictionStatic: 0,
-          render: { fillStyle: '#2c3e50' }
-        }
+        { friction: 0, frictionStatic: 0 }
       )
       context.addElement(boundary.value)
 
@@ -47,16 +44,14 @@ const scene = useScene(
         density: 1,
         restitution: 1.1,
         friction: 0,
-        frictionAir: 0.005,
-        render: { fillStyle: '#e74c3c' }
+        frictionAir: 0.005
       })
 
       const ball2 = ElementFactory.createBall(400, 430, 30, {
         density: 1,
         restitution: 1.1,
         friction: 0,
-        frictionAir: 0.005,
-        render: { fillStyle: '#3498db' }
+        frictionAir: 0.005
       })
 
       // Даём начальную скорость
@@ -102,6 +97,12 @@ const scene = useScene(
           })
         }
       })
+
+      // Медленное вращение границ через изменение угла
+      if (boundary.value) {
+        rotationAngle += 0.005
+        Matter.Body.setAngle(boundary.value, rotationAngle)
+      }
     }
   }
 )
@@ -131,20 +132,21 @@ const toggleScene = () => {
 const restartScene = () => {
   const wasRunning = isRunning.value
   stopRainbowAnimation()
-  
-  // Очищаем массивы
+
+  // Очищаем массивы и сбрасываем угол
   balls.length = 0
-  
+  rotationAngle = 0
+
   // Используем встроенную функцию reset
   scene.reset()
-  
+
   if (wasRunning) {
     scene.start()
     isRunning.value = true
   } else {
     isRunning.value = false
   }
-  
+
   startRainbowAnimation(getRainbowBodies)
 }
 

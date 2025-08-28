@@ -13,6 +13,7 @@ const canvasContainer = ref<HTMLDivElement>()
 const balls: Matter.Body[] = []
 const boundary = ref<Matter.Body>()
 const isRunning = ref(false)
+let rotationAngle = 0
 
 const { startRainbowAnimation, stopRainbowAnimation } = useRainbowColors()
 const { createCollisionHandler, toggleMute, isMuted } = useCollisionSounds()
@@ -39,16 +40,16 @@ const scene = useScene(
       context.addElement(boundary.value)
 
       // Создаём два шара
-      const ball1 = ElementFactory.createBall(380, 400, 30, {
+      const ball1 = ElementFactory.createBall(380, 400, 20, {
         density: 1,
-        restitution: 1.1,
+        restitution: 1.3,
         friction: 0,
         frictionAir: 0.005
       })
 
-      const ball2 = ElementFactory.createBall(400, 430, 30, {
+      const ball2 = ElementFactory.createBall(400, 430, 20, {
         density: 1,
-        restitution: 1.1,
+        restitution: 1.3,
         friction: 0,
         frictionAir: 0.005
       })
@@ -83,7 +84,7 @@ const scene = useScene(
 
     animate: () => {
       // Ограничиваем скорость шаров
-      const maxSpeed = 50
+      const maxSpeed = 40
       balls.forEach(ball => {
         const speed = Math.sqrt(
           ball.velocity.x ** 2 + ball.velocity.y ** 2
@@ -96,6 +97,12 @@ const scene = useScene(
           })
         }
       })
+
+      // Медленное вращение границ через изменение угла
+      if (boundary.value) {
+        rotationAngle += 0.05
+        Matter.Body.setAngle(boundary.value, rotationAngle)
+      }
     }
   }
 )
@@ -125,20 +132,21 @@ const toggleScene = () => {
 const restartScene = () => {
   const wasRunning = isRunning.value
   stopRainbowAnimation()
-  
-  // Очищаем массивы
+
+  // Очищаем массивы и сбрасываем угол
   balls.length = 0
-  
+  rotationAngle = 0
+
   // Используем встроенную функцию reset
   scene.reset()
-  
+
   if (wasRunning) {
     scene.start()
     isRunning.value = true
   } else {
     isRunning.value = false
   }
-  
+
   startRainbowAnimation(getRainbowBodies)
 }
 
