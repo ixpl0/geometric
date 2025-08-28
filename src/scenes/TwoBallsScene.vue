@@ -122,6 +122,26 @@ const toggleScene = () => {
   }
 }
 
+const restartScene = () => {
+  const wasRunning = isRunning.value
+  stopRainbowAnimation()
+  
+  // Очищаем массивы
+  balls.length = 0
+  
+  // Используем встроенную функцию reset
+  scene.reset()
+  
+  if (wasRunning) {
+    scene.start()
+    isRunning.value = true
+  } else {
+    isRunning.value = false
+  }
+  
+  startRainbowAnimation(getRainbowBodies)
+}
+
 onMounted(() => {
   if (canvasContainer.value) {
     scene.init(canvasContainer.value)
@@ -133,13 +153,21 @@ onMounted(() => {
 
 <template>
   <div class="app">
-    <button
-      @click="toggleScene"
-      class="control-button"
-      :class="{ active: isRunning }"
-    >
-      {{ isRunning ? 'Остановить' : 'Запустить' }}
-    </button>
+    <div class="controls">
+      <button
+        @click="toggleScene"
+        class="control-button"
+        :class="{ active: isRunning }"
+      >
+        {{ isRunning ? 'Остановить' : 'Запустить' }}
+      </button>
+      <button
+        @click="restartScene"
+        class="control-button restart"
+      >
+        Рестарт
+      </button>
+    </div>
     <div ref="canvasContainer" class="canvas-container"></div>
   </div>
 </template>
@@ -180,9 +208,28 @@ onMounted(() => {
 .control-button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(45deg, #4ecdc4, #45b7d1, #96ceb4, #ff6b6b);
 }
 
 .control-button.active {
-  background: linear-gradient(45deg, #e74c3c, #c0392b);
+  background: linear-gradient(45deg, #e74c3c, #c0392b, #e67e22, #d35400);
+}
+
+.control-button.active:hover {
+  background: linear-gradient(45deg, #c0392b, #e67e22, #d35400, #e74c3c);
+}
+
+.controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.control-button.restart {
+  background: linear-gradient(45deg, #9b59b6, #8e44ad, #3498db, #2ecc71);
+}
+
+.control-button.restart:hover {
+  background: linear-gradient(45deg, #8e44ad, #9b59b6, #2ecc71, #3498db);
 }
 </style>
