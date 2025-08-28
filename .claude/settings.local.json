@@ -5,7 +5,8 @@
       "Bash(pnpm run type-check:*)",
       "Bash(pnpm run:*)",
       "WebFetch(domain:github.com)",
-      "WebSearch"
+      "WebSearch",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []
