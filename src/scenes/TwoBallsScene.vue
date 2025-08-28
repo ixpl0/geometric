@@ -14,6 +14,10 @@ const balls: Matter.Body[] = []
 const boundary = ref<Matter.Body>()
 const isRunning = ref(false)
 let rotationAngle = 0
+let frameCounter = 0
+
+// Массивы для хранения шлейфов каждого шара
+const trailBodies: Map<number, Matter.Body[]> = new Map()
 
 const { startRainbowAnimation, stopRainbowAnimation } = useRainbowColors()
 const { createCollisionHandler, toggleMute, isMuted } = useCollisionSounds()
@@ -40,7 +44,7 @@ const scene = useScene(
       context.addElement(boundary.value)
 
       // Создаём два шара
-      const ball1 = ElementFactory.createBall(380, 400, 20, {
+      const ball1 = ElementFactory.createBall(380, 300, 20, {
         density: 1,
         restitution: 1.3,
         friction: 0,
@@ -98,6 +102,64 @@ const scene = useScene(
         }
       })
 
+      // Обновляем шлейфы для шаров каждые 5 кадров
+      frameCounter++
+      if (frameCounter % 2 === 0) {
+        balls.forEach(ball => {
+        const ballId = ball.id
+        const trails = trailBodies.get(ballId) || []
+
+        // Создаём новый шар-шлейф
+        const trailBall = ElementFactory.createBall(
+          ball.position.x,
+          ball.position.y,
+          ball.circleRadius || 20,
+          {
+            render: {
+              fillStyle: ball.render.fillStyle || '#ff6b6b',
+              strokeStyle: 'transparent'
+            }
+          }
+        )
+
+        // Полностью отключаем физические взаимодействия
+        trailBall.collisionFilter = {
+          group: -1,
+          category: 0x0000,
+          mask: 0x0000
+        }
+
+        // Устанавливаем начальную прозрачность
+        if (trailBall.render) {
+          trailBall.render.opacity = 0.5
+        }
+
+        // Добавляем в начало массива
+        trails.unshift(trailBall)
+
+        // Обновляем прозрачность всех шлейфов
+        trails.forEach((trail, index) => {
+          if (trail.render) {
+            trail.render.opacity = Math.max(0.1, 0.5 - index * 0.05)
+          }
+        })
+
+        // Ограничиваем до 10 шлейфов
+        if (trails.length > 10) {
+          const oldTrail = trails.pop()
+          if (oldTrail) {
+            scene.removeElement(oldTrail)
+          }
+        }
+
+        // Добавляем новый шлейф в сцену
+        scene.addElement(trailBall)
+
+        // Сохраняем обновленный массив
+        trailBodies.set(ballId, trails)
+        })
+      }
+
       // Медленное вращение границ через изменение угла
       if (boundary.value) {
         rotationAngle += 0.05
@@ -133,9 +195,17 @@ const restartScene = () => {
   const wasRunning = isRunning.value
   stopRainbowAnimation()
 
-  // Очищаем массивы и сбрасываем угол
+  // Очищаем массивы, сбрасываем угол и шлейфы
   balls.length = 0
   rotationAngle = 0
+
+  // Удаляем все шлейфы из сцены
+  trailBodies.forEach(trails => {
+    trails.forEach(trail => {
+      scene.removeElement(trail)
+    })
+  })
+  trailBodies.clear()
 
   // Используем встроенную функцию reset
   scene.reset()
