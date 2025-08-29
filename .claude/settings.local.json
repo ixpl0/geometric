@@ -10,7 +10,9 @@
       "Bash(npm run type-check:*)",
       "Bash(npm run lint)"
     ],
-    "deny": [],
-    "ask": []
+    "deny": [
+    ],
+    "ask": [
+      "Bash(rm:*)"]
   }
 }

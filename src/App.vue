@@ -2,35 +2,68 @@
 import { ref, shallowRef } from 'vue'
 import TwoBallsScene from './scenes/TwoBallsScene.vue'
 import Scene2 from './scenes/Scene2.vue'
+import RainbowBouncingBalls from './scenes/RainbowBouncingBalls.vue'
+import SceneControls from './components/SceneControls.vue'
 
 interface SceneOption {
   id: string
   name: string
   component: object
+  hasMute: boolean
 }
 
 const scenes: SceneOption[] = [
   {
     id: 'dark',
     name: 'Сцена 1',
-    component: TwoBallsScene
+    component: TwoBallsScene,
+    hasMute: true,
   },
   {
     id: 'light',
     name: 'Сцена 2',
-    component: Scene2
-  }
+    component: Scene2,
+    hasMute: true,
+  },
+  {
+    id: 'rainbow',
+    name: 'rainbow',
+    component: RainbowBouncingBalls,
+    hasMute: false,
+  },
 ]
 
 const selectedSceneId = ref('dark')
 const currentScene = shallowRef(scenes[0].component)
 
+// Состояние управления сценой
+const isRunning = ref(false)
+const isMuted = ref(false)
+const restartTrigger = ref(0)
+
 const changeScene = (sceneId: string) => {
-  const scene = scenes.find(s => s.id === sceneId)
+  const scene = scenes.find((s) => s.id === sceneId)
   if (scene) {
     selectedSceneId.value = sceneId
     currentScene.value = scene.component
+    // Сбрасываем состояние при смене сцены
+    isRunning.value = false
+    isMuted.value = false
   }
+}
+
+const getCurrentScene = () => scenes.find((s) => s.id === selectedSceneId.value)
+
+const handleToggle = () => {
+  isRunning.value = !isRunning.value
+}
+
+const handleRestart = () => {
+  restartTrigger.value++
+}
+
+const handleToggleMute = () => {
+  isMuted.value = !isMuted.value
 }
 </script>
 
@@ -44,17 +77,31 @@ const changeScene = (sceneId: string) => {
         @change="changeScene(($event.target as HTMLSelectElement).value)"
         class="scene-select"
       >
-        <option
-          v-for="scene in scenes"
-          :key="scene.id"
-          :value="scene.id"
-        >
+        <option v-for="scene in scenes" :key="scene.id" :value="scene.id">
           {{ scene.name }}
         </option>
       </select>
     </div>
 
-    <component :is="currentScene" />
+    <SceneControls
+      :is-running="isRunning"
+      :is-muted="isMuted"
+      :show-mute-button="getCurrentScene()?.hasMute"
+      @toggle="handleToggle"
+      @restart="handleRestart"
+      @toggle-mute="handleToggleMute"
+    />
+
+    <div class="scene-container">
+      <component
+        :is="currentScene"
+        :is-running="isRunning"
+        :should-restart="restartTrigger"
+        :is-muted="isMuted"
+        @update:is-running="isRunning = $event"
+        @update:is-muted="isMuted = $event"
+      />
+    </div>
   </div>
 </template>
 
@@ -71,6 +118,16 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: #222;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.scene-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .scene-selector {

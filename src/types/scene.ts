@@ -23,16 +23,16 @@ export interface BaseScene {
   render: Matter.Render | null
   runner: Matter.Runner | null
   world: Matter.World | null
-  
+
   init: (container: HTMLElement) => void
   start: () => void
   stop: () => void
   reset: () => void
   destroy: () => void
-  
+
   addElement: (element: Matter.Body) => void
   removeElement: (element: Matter.Body) => void
-  
+
   onBeforeUpdate?: (delta: number) => void
   onAfterUpdate?: (delta: number) => void
 }

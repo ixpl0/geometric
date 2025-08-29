@@ -25,11 +25,11 @@ export const useScene = (config: SceneConfig, hooks: SceneHooks = {}) => {
   const runner = shallowRef<Matter.Runner | null>(null)
   const world = shallowRef<Matter.World | null>(null)
   const container = shallowRef<HTMLElement | null>(null)
-  
+
   const isRunning = ref(false)
   const isInitialized = ref(false)
   let animationId = 0
-  
+
   const defaultConfig: SceneConfig = {
     name: 'Default Scene',
     width: 800,
@@ -37,44 +37,44 @@ export const useScene = (config: SceneConfig, hooks: SceneHooks = {}) => {
     gravity: { x: 0, y: 1 },
     airFriction: 0.01,
     backgroundColor: '#000',
-    wireframes: false
+    wireframes: false,
   }
-  
+
   const mergedConfig: SceneConfig = {
     ...defaultConfig,
-    ...config
+    ...config,
   }
-  
+
   const addElement = (element: Matter.Body | Matter.Composite | Matter.MouseConstraint) => {
     if (world.value) {
       Matter.Composite.add(world.value, element)
     }
   }
-  
+
   const removeElement = (element: Matter.Body | Matter.Composite | Matter.MouseConstraint) => {
     if (world.value) {
       Matter.Composite.remove(world.value, element)
     }
   }
-  
+
   const init = (containerEl: HTMLElement) => {
     if (isInitialized.value) return
-    
+
     container.value = containerEl
     container.value.innerHTML = ''
-    
+
     const newEngine = Matter.Engine.create()
     engine.value = newEngine
     world.value = newEngine.world
-    
+
     if (mergedConfig.gravity) {
       newEngine.world.gravity.x = mergedConfig.gravity.x
       newEngine.world.gravity.y = mergedConfig.gravity.y
     }
-    
+
     const canvas = document.createElement('canvas')
     container.value.appendChild(canvas)
-    
+
     const newRender = Matter.Render.create({
       canvas,
       engine: newEngine,
@@ -82,102 +82,102 @@ export const useScene = (config: SceneConfig, hooks: SceneHooks = {}) => {
         width: mergedConfig.width,
         height: mergedConfig.height,
         wireframes: mergedConfig.wireframes,
-        background: mergedConfig.backgroundColor
-      }
+        background: mergedConfig.backgroundColor,
+      },
     })
     render.value = newRender
-    
+
     Matter.Render.run(newRender)
-    
+
     runner.value = Matter.Runner.create({
-      delta: 1000 / 240
+      delta: 1000 / 240,
     })
-    
+
     const context: SceneSetupContext = {
       world: world.value,
       engine: newEngine,
       render: newRender,
       config: mergedConfig,
       addElement,
-      removeElement
+      removeElement,
     }
-    
+
     hooks.setupScene?.(context)
     hooks.setupEventHandlers?.(context)
-    
+
     isInitialized.value = true
   }
-  
+
   const animate = () => {
     if (!isRunning.value || !engine.value || !render.value || !world.value) return
-    
+
     hooks.animate?.({
       world: world.value,
       engine: engine.value,
       render: render.value,
       config: mergedConfig,
       addElement,
-      removeElement
+      removeElement,
     })
-    
+
     animationId = requestAnimationFrame(animate)
   }
-  
+
   const start = () => {
     if (!engine.value || !runner.value || isRunning.value) return
-    
+
     Matter.Runner.run(runner.value, engine.value)
     isRunning.value = true
     animate()
   }
-  
+
   const stop = () => {
     if (!runner.value || !isRunning.value) return
-    
+
     Matter.Runner.stop(runner.value)
     isRunning.value = false
-    
+
     if (animationId) {
       cancelAnimationFrame(animationId)
       animationId = 0
     }
   }
-  
+
   const reset = () => {
     destroy()
     if (container.value) {
       init(container.value)
     }
   }
-  
+
   const destroy = () => {
     stop()
-    
+
     if (render.value) {
       Matter.Render.stop(render.value)
       render.value.canvas.remove()
       render.value = null
     }
-    
+
     if (runner.value) {
       Matter.Runner.stop(runner.value)
       runner.value = null
     }
-    
+
     if (engine.value) {
       Matter.Engine.clear(engine.value)
       engine.value = null
     }
-    
+
     world.value = null
     isRunning.value = false
     isInitialized.value = false
   }
-  
+
   onUnmounted(() => {
     destroy()
   })
-  
+
   return {
     init,
     start,
@@ -191,6 +191,6 @@ export const useScene = (config: SceneConfig, hooks: SceneHooks = {}) => {
     engine,
     render,
     world,
-    config: mergedConfig
+    config: mergedConfig,
   }
 }
