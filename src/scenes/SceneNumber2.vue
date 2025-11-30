@@ -25,7 +25,6 @@ const canvasContainer = ref<HTMLDivElement>()
 
 const balls: Matter.Body[] = []
 const boundary = ref<Matter.Body>()
-const isRunning = ref(false)
 let rotationAngle = 0
 let frameCounter = 0
 
@@ -33,7 +32,7 @@ let frameCounter = 0
 const trailBodies: Map<number, Matter.Body[]> = new Map()
 
 const { startRainbowAnimation, stopRainbowAnimation } = useRainbowColors()
-const { createCollisionHandler, toggleMute, isMuted } = useCollisionSounds()
+const { createCollisionHandler, toggleMute, isMuted: soundMuted } = useCollisionSounds()
 
 const scene = useScene(
   {
@@ -49,7 +48,7 @@ const scene = useScene(
       const halfWidth = 400 / 2
       const halfHeight = 400 / 2
       const thickness = 10
-      
+
       const parts = [
         Matter.Bodies.rectangle(400 - halfWidth + thickness / 2, 400, thickness, 400, {
           friction: 0,
@@ -68,13 +67,13 @@ const scene = useScene(
           frictionStatic: 0,
         }),
       ]
-      
+
       boundary.value = Matter.Body.create({
         parts,
         isStatic: true,
         render: { fillStyle: '#e74c3c' },
       })
-      
+
       Matter.Body.setPosition(boundary.value, { x: 400, y: 400 })
       context.addElement(boundary.value)
 
@@ -221,26 +220,22 @@ const getRainbowBodies = () => {
 }
 
 const toggleScene = () => {
-  if (isRunning.value) {
+  if (scene.isRunning.value) {
     scene.stop()
     stopRainbowAnimation()
-    isRunning.value = false
   } else {
     scene.start()
     startRainbowAnimation(getRainbowBodies)
-    isRunning.value = true
   }
 }
 
 const restartScene = () => {
-  const wasRunning = isRunning.value
+  const wasRunning = scene.isRunning.value
   stopRainbowAnimation()
 
-  // Очищаем массивы, сбрасываем угол и шлейфы
   balls.length = 0
   rotationAngle = 0
 
-  // Удаляем все шлейфы из сцены
   trailBodies.forEach((trails) => {
     trails.forEach((trail) => {
       scene.removeElement(trail)
@@ -248,14 +243,10 @@ const restartScene = () => {
   })
   trailBodies.clear()
 
-  // Используем встроенную функцию reset
   scene.reset()
 
   if (wasRunning) {
     scene.start()
-    isRunning.value = true
-  } else {
-    isRunning.value = false
   }
 
   startRainbowAnimation(getRainbowBodies)
@@ -269,31 +260,38 @@ onMounted(() => {
   }
 })
 
-// Реактивное управление через пропсы
-watch(() => props.isRunning, (newValue) => {
-  if (newValue !== undefined && newValue !== isRunning.value) {
-    toggleScene()
-  }
-})
+watch(
+  () => props.isRunning,
+  (newValue) => {
+    if (newValue !== undefined && newValue !== scene.isRunning.value) {
+      toggleScene()
+    }
+  },
+)
 
-watch(() => props.shouldRestart, (shouldRestart) => {
-  if (shouldRestart) {
-    restartScene()
-  }
-})
+watch(
+  () => props.shouldRestart,
+  (shouldRestart) => {
+    if (shouldRestart) {
+      restartScene()
+    }
+  },
+)
 
-watch(() => props.isMuted, (newValue) => {
-  if (newValue !== undefined && newValue !== isMuted.value) {
-    toggleMute()
-  }
-})
+watch(
+  () => props.isMuted,
+  (newValue) => {
+    if (newValue !== undefined && newValue !== soundMuted.value) {
+      toggleMute()
+    }
+  },
+)
 
-// Эмитим изменения состояния
-watch(isRunning, (value) => {
+watch(scene.isRunning, (value) => {
   emit('update:isRunning', value)
 })
 
-watch(isMuted, (value) => {
+watch(soundMuted, (value) => {
   emit('update:isMuted', value)
 })
 </script>
@@ -301,4 +299,3 @@ watch(isMuted, (value) => {
 <template>
   <div ref="canvasContainer"></div>
 </template>
-

@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import type { Synth, Gain } from 'tone'
 import type Matter from 'matter-js'
+import { getBodySpeed } from '../utils/physics'
 
 export interface SoundConfig {
   baseFrequency?: number
@@ -93,9 +94,9 @@ export const useCollisionSounds = (config: SoundConfig = {}) => {
             ? bodies.find((b) => b.id === bodyA.id)
             : bodies.find((b) => b.id === bodyB.id)
 
-          if (!currentBody?.velocity) continue
+          if (!currentBody) continue
 
-          const speed = Math.sqrt(currentBody.velocity.x ** 2 + currentBody.velocity.y ** 2)
+          const speed = getBodySpeed(currentBody)
           const intensity = Math.min(speed / maxSpeed, 1)
 
           playCollisionSound(intensity)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import TwoBallsScene from './scenes/TwoBallsScene.vue'
-import Scene2 from './scenes/Scene2.vue'
+import SceneNumber2 from './scenes/SceneNumber2.vue'
 import RainbowBouncingBalls from './scenes/RainbowBouncingBalls.vue'
 import SceneControls from './components/SceneControls.vue'
 
@@ -22,7 +22,7 @@ const scenes: SceneOption[] = [
   {
     id: 'light',
     name: 'Сцена 2',
-    component: Scene2,
+    component: SceneNumber2,
     hasMute: true,
   },
   {

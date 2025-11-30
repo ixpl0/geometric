@@ -15,8 +15,6 @@ export interface SceneHooks {
   setupScene?: (context: SceneSetupContext) => void
   setupEventHandlers?: (context: SceneSetupContext) => void
   animate?: (context: SceneSetupContext) => void
-  onBeforeUpdate?: (delta: number) => void
-  onAfterUpdate?: (delta: number) => void
 }
 
 export const useScene = (config: SceneConfig, hooks: SceneHooks = {}) => {
@@ -35,7 +33,6 @@ export const useScene = (config: SceneConfig, hooks: SceneHooks = {}) => {
     width: 800,
     height: 800,
     gravity: { x: 0, y: 1 },
-    airFriction: 0.01,
     backgroundColor: '#000',
     wireframes: false,
   }

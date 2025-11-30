@@ -3,7 +3,6 @@ import { onMounted, ref, watch } from 'vue'
 import Matter from 'matter-js'
 import { useScene } from '../composables/useScene'
 import { useRainbowColors } from '../composables/useRainbowColors'
-import { useCollisionSounds } from '../composables/useCollisionSounds'
 import type { SceneSetupContext } from '../composables/useScene'
 import type { ColorableBody } from '../composables/useRainbowColors'
 
@@ -25,7 +24,6 @@ const balls: Matter.Body[] = []
 const boundary = ref<Matter.Body>()
 
 const { startRainbowAnimation } = useRainbowColors()
-const { createCollisionHandler } = useCollisionSounds()
 
 const scene = useScene(
   {
@@ -41,20 +39,20 @@ const scene = useScene(
       const halfWidth = 400 / 2
       const halfHeight = 400 / 2
       const thickness = 10
-      
+
       const parts = [
         Matter.Bodies.rectangle(400 - halfWidth + thickness / 2, 400, thickness, 400),
         Matter.Bodies.rectangle(400, 400 - halfHeight + thickness / 2, 400, thickness),
         Matter.Bodies.rectangle(400 + halfWidth - thickness / 2, 400, thickness, 400),
         Matter.Bodies.rectangle(400, 400 + halfHeight - thickness / 2, 400, thickness),
       ]
-      
+
       boundary.value = Matter.Body.create({
         parts,
         isStatic: true,
         render: { fillStyle: '#e74c3c' },
       })
-      
+
       Matter.Body.setPosition(boundary.value, { x: 400, y: 400 })
       context.addElement(boundary.value)
 
@@ -84,11 +82,6 @@ const scene = useScene(
     },
 
     setupEventHandlers: (context: SceneSetupContext) => {
-      // Добавляем обработчик столкновений со звуками
-      const collisionHandler = createCollisionHandler(balls)
-      Matter.Events.on(context.engine, 'collisionStart', collisionHandler)
-
-      // Добавляем мышиное взаимодействие
       const mouse = Matter.Mouse.create(context.render.canvas)
       const mouseConstraint = Matter.MouseConstraint.create(context.engine, {
         mouse,
@@ -144,17 +137,23 @@ onMounted(() => {
 })
 
 // Реактивное управление через пропсы
-watch(() => props.isRunning, (newValue) => {
-  if (newValue !== undefined && newValue !== scene.isRunning.value) {
-    toggleScene()
-  }
-})
+watch(
+  () => props.isRunning,
+  (newValue) => {
+    if (newValue !== undefined && newValue !== scene.isRunning.value) {
+      toggleScene()
+    }
+  },
+)
 
-watch(() => props.shouldRestart, (shouldRestart) => {
-  if (shouldRestart) {
-    scene.reset()
-  }
-})
+watch(
+  () => props.shouldRestart,
+  (shouldRestart) => {
+    if (shouldRestart) {
+      scene.reset()
+    }
+  },
+)
 
 // Эмитим изменения состояния
 watch(scene.isRunning, (value) => {
@@ -165,4 +164,3 @@ watch(scene.isRunning, (value) => {
 <template>
   <div ref="canvasContainer"></div>
 </template>
-

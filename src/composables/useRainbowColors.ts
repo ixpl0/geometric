@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import type Matter from 'matter-js'
+import { getBodySpeed } from '../utils/physics'
 
 export interface RainbowOptions {
   baseSpeed?: number
@@ -48,17 +49,6 @@ export const useRainbowColors = () => {
     body.render.fillStyle = getHSL(time, speed, options)
   }
 
-  const applyRainbowToComposite = (
-    composite: Matter.Composite,
-    time: number,
-    options: RainbowOptions = {},
-  ) => {
-    composite.bodies.forEach((body, index) => {
-      const phaseShift = (options.phaseShift || 0) + index * 90
-      applyRainbow(body as ColorableBody, time, 0, { ...options, phaseShift })
-    })
-  }
-
   const startRainbowAnimation = (
     targets: ColorableBody[] | (() => ColorableBody[]),
     options: RainbowOptions = {},
@@ -72,7 +62,7 @@ export const useRainbowColors = () => {
       const bodies = typeof targets === 'function' ? targets() : targets
 
       bodies.forEach((body, index) => {
-        const speed = body.velocity ? Math.sqrt(body.velocity.x ** 2 + body.velocity.y ** 2) : 0
+        const speed = getBodySpeed(body)
 
         applyRainbow(body, time, speed, {
           ...options,
@@ -101,7 +91,6 @@ export const useRainbowColors = () => {
   return {
     getHSL,
     applyRainbow,
-    applyRainbowToComposite,
     startRainbowAnimation,
     stopRainbowAnimation,
     isAnimating,
