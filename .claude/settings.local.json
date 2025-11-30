@@ -8,11 +8,12 @@
       "WebSearch",
       "mcp__ide__getDiagnostics",
       "Bash(npm run type-check:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(dir:*)"
     ],
-    "deny": [
-    ],
+    "deny": [],
     "ask": [
-      "Bash(rm:*)"]
+      "Bash(rm:*)"
+    ]
   }
 }
